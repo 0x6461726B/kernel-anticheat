@@ -1,5 +1,4 @@
 #pragma once
-#include <ntddk.h>
 
 typedef struct _OB_CALLBACK_CONTEXT {
 	PVOID RegistrationHandle;

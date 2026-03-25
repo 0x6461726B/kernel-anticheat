@@ -1,11 +1,8 @@
-#include "ObCallbacks.h"
-#include "shared.h"
-#include "ProcessList.h"
+#include <ntifs.h>
 
-extern NTSTATUS SeLocateProcessImageName(
-	_In_ PEPROCESS Process,
-	_Outptr_ PUNICODE_STRING* ImageFileName
-);
+#include "shared.h"
+#include "ObCallbacks.h"
+#include "ProcessList.h"
 
 OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
 	UNREFERENCED_PARAMETER(RegistrationContext);
@@ -23,7 +20,16 @@ OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OP
 	//char* processName = (char*)((PUCHAR)targetProcess + 0x338);
 	//char* sourceName = (char*)((PUCHAR)sourceProcess + 0x338);
 
-	ACCESS_MASK access = OperationInformation->Parameters->CreateHandleInformation.DesiredAccess;
+	PACCESS_MASK target;
+
+	if (OperationInformation->Operation == OB_OPERATION_HANDLE_CREATE) {
+		target = &OperationInformation->Parameters->CreateHandleInformation.DesiredAccess;
+	}
+	else {
+		target = &OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess;
+	}
+
+	ACCESS_MASK access = *target;
 
 	if (access & (PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_TERMINATE)) {
 
@@ -34,15 +40,9 @@ OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OP
 				KdPrint(("Proces [%wZ] tried to acces [usermode.exe] - PERMS STRIPPED\n", sourceName2));
 				ExFreePoolWithTag(sourceName2, 0);
 			}
-
-			OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~PROCESS_ALL_ACCESS;
-			//OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~PROCESS_VM_READ;
-			//OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~PROCESS_VM_WRITE;
-			//OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~PROCESS_VM_OPERATION;
-
-
-			OperationInformation->Parameters->CreateHandleInformation.DesiredAccess |= PROCESS_QUERY_LIMITED_INFORMATION;
-
+		
+			*target &= ~PROCESS_ALL_ACCESS;
+			*target |= PROCESS_QUERY_LIMITED_INFORMATION;
 
 		}
 	}

@@ -1,5 +1,4 @@
 #pragma once
-#include "shared.h"
 
 NTSTATUS ProcessList_Add(HANDLE pid);
 VOID ProcessList_Remove(HANDLE pid);
