@@ -4,7 +4,7 @@
 
 int main()
 {
-    LPCWSTR driverName = L"\\\\.\\LilAnticheat";
+    LPCWSTR driverName = L"\\\\.\\ScoutAC";
 
     HANDLE hDevice = CreateFile(
         driverName,
@@ -47,6 +47,32 @@ int main()
     }
     else {
         std::cout << "IOCTL failed. Error code: " << GetLastError() << std::endl;
+    }
+
+    auto processID = GetCurrentProcessId();
+
+    success = DeviceIoControl(
+        hDevice,
+        IOCTL_PROTECT_PROCESS,
+        &processID,
+        sizeof(processID),
+        nullptr,
+        0,
+        &bytesReturned,
+        nullptr);
+
+    if (success) {
+        std::cout << "Protected process: " << processID << " successfully." << std::endl;
+    }
+    else {
+        std::cout << "Failed to protect process. Error code: " << GetLastError() << std::endl;
+    }
+    
+
+    while (true) {
+        Sleep(10);
+        if (GetAsyncKeyState(VK_END) & 1)
+            break;
     }
 
     CloseHandle(hDevice);

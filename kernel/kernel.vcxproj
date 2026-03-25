@@ -19,7 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Device.c" />
+    <ClCompile Include="Driver.c" />
+    <ClCompile Include="ObCallbacks.c" />
+    <ClCompile Include="ProcessList.c" />
+    <ClInclude Include="ObCallbacks.h" />
+    <ClInclude Include="ProcessList.h" />
   </ItemGroup>
   <ItemGroup>
     <Inf Include="kernel.inf" />

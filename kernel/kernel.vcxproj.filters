@@ -17,6 +17,12 @@
       <UniqueIdentifier>{8E41214B-6785-4CFE-B992-037D68949A14}</UniqueIdentifier>
       <Extensions>inf;inv;inx;mof;mc;</Extensions>
     </Filter>
+    <Filter Include="callbacks">
+      <UniqueIdentifier>{43c7e17e-1670-442c-8088-9c0fe043f557}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{f3811adf-6cd3-4345-b4b5-4d756b7a6738}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="kernel.inf">
@@ -24,13 +30,25 @@
     </Inf>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Device.c">
+    <ClCompile Include="Driver.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ObCallbacks.c">
+      <Filter>callbacks</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessList.c">
+      <Filter>utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\shared.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ObCallbacks.h">
+      <Filter>callbacks</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessList.h">
+      <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
