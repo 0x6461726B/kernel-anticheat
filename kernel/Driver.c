@@ -2,7 +2,11 @@
 
 #include "shared.h"
 #include "ObCallbacks.h"
+#include "ThreadCallbacks.h"
 #include "ProcessList.h"
+#include "ImageCallbacks.h"
+#include "ProcessCallbacks.h"
+
 
 PDEVICE_OBJECT pDeviceObject = NULL;
 static OB_CALLBACK_CONTEXT g_ObCtx = { 0 };
@@ -28,11 +32,11 @@ NTSTATUS MyIrpDeviceControlHandler(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG_PTR bytesReturned = 0;
 
-	KdPrint(("IOCTL Received: 0x%X\n", controlCode));
+	KdPrint(("[ScoutAC] IOCTL Received: 0x%X\n", controlCode));
 
 	switch (controlCode) {
 	case IOCTL_AC_ECHO_TEST: {
-		KdPrint(("Hello from ScoutAC!\n"));
+		KdPrint(("[ScoutAC] Hello from ScoutAC!\n"));
 		status = STATUS_SUCCESS;
 		bytesReturned = 0;
 		break;
@@ -44,12 +48,12 @@ NTSTATUS MyIrpDeviceControlHandler(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 		}
 		ULONG pid = *(ULONG*)Irp->AssociatedIrp.SystemBuffer;
 		status = ProcessList_Add((HANDLE)pid);
-		KdPrint(("Protected process 0x%X", pid));
+		KdPrint(("[ScoutAC] Protected process 0x%X\n", pid));
 		break;
 	}
 
 	default: {
-		KdPrint(("Unknown IOCTL: 0x%X\n", controlCode));
+		KdPrint(("[ScoutAC] Unknown IOCTL: 0x%X\n", controlCode));
 		status = STATUS_INVALID_DEVICE_REQUEST;
 		break;
 	}
@@ -69,15 +73,18 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 
 	IoDeleteSymbolicLink(&dosDeviceName);
 
-	ObCallbacks_Unregister(&g_ObCtx);
+	//ObCallbacks_Unregister(&g_ObCtx);
+	ThreadCallbacks_Unregister();
+	ProcessCallbacks_Unregister();
 	ProcessList_Cleanup();
+
 
 	if (DriverObject->DeviceObject != NULL) {
 		IoDeleteDevice(pDeviceObject);
 	}
 
 
-	KdPrint(("Driver unloaded!\n"));
+	KdPrint(("[ScoutAC] Driver unloaded!\n"));
 };
 
 
@@ -104,14 +111,14 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	);
 
 	if (!NT_SUCCESS(status)) {
-		KdPrint(("Failed to create device object! Error: 0x%X\n", status));
+		KdPrint(("[ScoutAC] Failed to create device object! Error: 0x%X\n", status));
 		return status;
 	}
 
 	status = IoCreateSymbolicLink(&dosDeviceName, &ntDeviceName);
 
 	if (!NT_SUCCESS(status)) {
-		KdPrint(("Failed to create symbolic link! Error: 0x%X\n", status));
+		KdPrint(("[ScoutAC] Failed to create symbolic link! Error: 0x%X\n", status));
 		IoDeleteDevice(pDeviceObject); 
 		pDeviceObject = NULL;
 		return status;
@@ -124,10 +131,10 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	DriverObject->DriverUnload = DriverUnload;
 
 
-	status = ObCallbacks_Register(&g_ObCtx);
+	/*status = ObCallbacks_Register(&g_ObCtx);
 
 	if (!NT_SUCCESS(status)) {
-		KdPrint(("Failed to register callbacks! Error: 0x%X\n", status));
+		KdPrint(("[ScoutAC] Failed to register object callbacks! Error: 0x%X\n", status));
 
 		IoDeleteSymbolicLink(&dosDeviceName);
 		IoDeleteDevice(pDeviceObject);
@@ -135,12 +142,37 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 
 		return status;
 		
+	}*/
+
+	status = ThreadCallbacks_Register();
+
+	if (!NT_SUCCESS(status)) {
+		KdPrint(("[ScoutAC] Failed to register thread callbacks! Error: 0x%X\n", status));
+
+		IoDeleteSymbolicLink(&dosDeviceName);
+		IoDeleteDevice(pDeviceObject);
+		pDeviceObject = NULL;
+
+		return status;
+
+	}
+
+	status = ProcessCallbacks_Register();
+
+	if (!NT_SUCCESS(status)) {
+		KdPrint(("[ScoutAC] Failed to register process callbacks! Error: 0x%X\n", status));
+
+		IoDeleteSymbolicLink(&dosDeviceName);
+		IoDeleteDevice(pDeviceObject);
+		pDeviceObject = NULL;
+
+		return status;
+
 	}
 
 
 
-
-	KdPrint(("Driver loaded!\n"));
+	KdPrint(("[ScoutAC] Driver loaded!\n"));
 
 
 	return STATUS_SUCCESS;

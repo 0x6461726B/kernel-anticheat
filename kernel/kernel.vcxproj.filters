@@ -39,6 +39,15 @@
     <ClCompile Include="ProcessList.c">
       <Filter>utils</Filter>
     </ClCompile>
+    <ClCompile Include="ThreadCallbacks.c">
+      <Filter>callbacks</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageCallbacks.c">
+      <Filter>callbacks</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessCallbacks.c">
+      <Filter>callbacks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\shared.h">
@@ -49,6 +58,15 @@
     </ClInclude>
     <ClInclude Include="ProcessList.h">
       <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadCallbacks.h">
+      <Filter>callbacks</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageCallbacks.h">
+      <Filter>callbacks</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessCallbacks.h">
+      <Filter>callbacks</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -37,7 +37,7 @@ OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OP
 			PUNICODE_STRING sourceName2 = NULL;
 			if (NT_SUCCESS(SeLocateProcessImageName(sourceProcess, &sourceName2))) {
 
-				KdPrint(("Proces [%wZ] tried to acces [usermode.exe] - PERMS STRIPPED\n", sourceName2));
+				KdPrint(("[ScoutAC] Process [%wZ] tried to acces [usermode.exe] - PERMS STRIPPED\n", sourceName2));
 				ExFreePoolWithTag(sourceName2, 0);
 			}
 		

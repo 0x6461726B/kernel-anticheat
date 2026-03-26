@@ -20,10 +20,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c" />
+    <ClCompile Include="ImageCallbacks.c" />
     <ClCompile Include="ObCallbacks.c" />
+    <ClCompile Include="ProcessCallbacks.c" />
     <ClCompile Include="ProcessList.c" />
+    <ClCompile Include="ThreadCallbacks.c" />
+    <ClInclude Include="ImageCallbacks.h" />
     <ClInclude Include="ObCallbacks.h" />
+    <ClInclude Include="ProcessCallbacks.h" />
     <ClInclude Include="ProcessList.h" />
+    <ClInclude Include="ThreadCallbacks.h" />
   </ItemGroup>
   <ItemGroup>
     <Inf Include="kernel.inf" />
