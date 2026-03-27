@@ -78,6 +78,20 @@ BOOLEAN ProcessList_IsProtected(PEPROCESS process) {
 	return FALSE;
 }
 
+BOOLEAN ProcessList_IsProtectedPid(HANDLE pid) {
+	KIRQL irql;
+	KeAcquireSpinLock(&g_Lock, &irql);
+
+	for (ULONG i = 0; i < g_ProtectedCount; i++) {
+		if (g_ProtectedList[i].Pid == pid) {
+			KeReleaseSpinLock(&g_Lock, irql);
+			return TRUE;
+		}
+	}
+	KeReleaseSpinLock(&g_Lock, irql);
+	return FALSE;
+}
+
 VOID ProcessList_Cleanup(VOID) {
 	KIRQL irql;
 	KeAcquireSpinLock(&g_Lock, &irql);

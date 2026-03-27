@@ -1,13 +1,19 @@
 #include <ntifs.h>
 #include "ImageCallbacks.h"
+#include "ProcessList.h"
 
 VOID OnLoadImage(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo) {
-	UNREFERENCED_PARAMETER(FullImageName);
-	UNREFERENCED_PARAMETER(ProcessId);
-	UNREFERENCED_PARAMETER(ImageInfo);
 
+	if (!ProcessId) return;
 
-	//blacklist / whitelist  implement it later
+	if (!ProcessList_IsProtectedPid(ProcessId))
+		return;
+
+	if (ImageInfo->ImageSignatureLevel <= SE_SIGNING_LEVEL_UNSIGNED) {
+		KdPrint(("Suspicious unsigned module loaded: %wZ\n", FullImageName));
+	}
+	
+	
 }
 
 NTSTATUS ImageCallbacks_Register(VOID) {

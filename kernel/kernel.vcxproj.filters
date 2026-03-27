@@ -23,6 +23,15 @@
     <Filter Include="utils">
       <UniqueIdentifier>{f3811adf-6cd3-4345-b4b5-4d756b7a6738}</UniqueIdentifier>
     </Filter>
+    <Filter Include="detections">
+      <UniqueIdentifier>{ab4a4f3a-b95b-482d-b1e3-1327e6d9392e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="detections\memory">
+      <UniqueIdentifier>{bba90dd9-4953-4e8a-9027-716f613a0b85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="detections\kernel">
+      <UniqueIdentifier>{44a9d088-960c-448d-a112-c9b591da7642}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="kernel.inf">
