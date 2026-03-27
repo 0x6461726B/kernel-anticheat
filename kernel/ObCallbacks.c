@@ -10,15 +10,21 @@ OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OP
 	if (OperationInformation->KernelHandle)
 		return OB_PREOP_SUCCESS;
 
-	PEPROCESS targetProcess = (PEPROCESS)OperationInformation->Object;
+	PEPROCESS targetProcess = NULL;
 	PEPROCESS sourceProcess = PsGetCurrentProcess();
+
+	if (OperationInformation->ObjectType == *PsThreadType) {
+		targetProcess = PsGetThreadProcess((PETHREAD)OperationInformation->Object);
+	}
+	else {
+		targetProcess = (PEPROCESS)OperationInformation->Object;
+	}
 
 	if (sourceProcess == targetProcess || sourceProcess == PsInitialSystemProcess)
 		return OB_PREOP_SUCCESS;
 
-
-	//char* processName = (char*)((PUCHAR)targetProcess + 0x338);
-	//char* sourceName = (char*)((PUCHAR)sourceProcess + 0x338);
+	if (!ProcessList_IsProtected(targetProcess))
+		return OB_PREOP_SUCCESS;
 
 	PACCESS_MASK target;
 
@@ -29,42 +35,53 @@ OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OP
 		target = &OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess;
 	}
 
+	char* targetName = (char*)((PUCHAR)targetProcess + 0x338); // win11 25h2 ImageFileName
+	char* sourceName = (char*)((PUCHAR)sourceProcess + 0x338);
+
 	ACCESS_MASK access = *target;
 
-	if (access & (PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_TERMINATE)) {
-
-		if (ProcessList_IsProtected(targetProcess)){
-			PUNICODE_STRING sourceName2 = NULL;
-			if (NT_SUCCESS(SeLocateProcessImageName(sourceProcess, &sourceName2))) {
-
-				KdPrint(("[ScoutAC] Process [%wZ] tried to acces [usermode.exe] - PERMS STRIPPED\n", sourceName2));
-				ExFreePoolWithTag(sourceName2, 0);
-			}
-		
+	if (OperationInformation->ObjectType == *PsProcessType) {
+		if (access & (PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_TERMINATE | PROCESS_VM_OPERATION | PROCESS_SUSPEND_RESUME | PROCESS_SET_INFORMATION)) {
 			*target &= ~PROCESS_ALL_ACCESS;
 			*target |= PROCESS_QUERY_LIMITED_INFORMATION;
 
+
+			KdPrint(("[ScoutAC] Process [%s] tried to access [%s] - PERMS STRIPPED\n", sourceName, targetName));
 		}
 	}
+	else if (OperationInformation->ObjectType == *PsThreadType) {
+		if (access & (THREAD_TERMINATE | THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT)) {
+			*target &= ~THREAD_ALL_ACCESS;
+			*target |= THREAD_QUERY_LIMITED_INFORMATION;
+
+			KdPrint(("[ScoutAC] Process [%s] tried to access [%s] - PERMS STRIPPED\n", sourceName, targetName));
+
+		}
+	}
+
 
 	return OB_PREOP_SUCCESS;
 }
 
 NTSTATUS ObCallbacks_Register(OB_CALLBACK_CONTEXT* ctx) {
-	OB_OPERATION_REGISTRATION opReg = { 0 };
+	OB_OPERATION_REGISTRATION opReg[2] = {0};
 	OB_CALLBACK_REGISTRATION cbReg = { 0 };
 	UNICODE_STRING altitude;
 
 	RtlInitUnicodeString(&altitude, L"321000");
 
-	opReg.ObjectType = PsProcessType;
-	opReg.Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
-	opReg.PreOperation = PreObjectCallback;
+	opReg[0].ObjectType = PsProcessType;
+	opReg[0].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
+	opReg[0].PreOperation = PreObjectCallback;
+
+	opReg[1].ObjectType = PsThreadType;
+	opReg[1].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
+	opReg[1].PreOperation = PreObjectCallback;
 
 	cbReg.Version = OB_FLT_REGISTRATION_VERSION;
-	cbReg.OperationRegistrationCount = 1;
+	cbReg.OperationRegistrationCount = 2;
 	cbReg.Altitude = altitude;
-	cbReg.OperationRegistration = &opReg;
+	cbReg.OperationRegistration = opReg;
 
 	return ObRegisterCallbacks(&cbReg, &ctx->RegistrationHandle);
 
