@@ -73,7 +73,7 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 
 	IoDeleteSymbolicLink(&dosDeviceName);
 
-	//ObCallbacks_Unregister(&g_ObCtx);
+	ObCallbacks_Unregister(&g_ObCtx);
 	ThreadCallbacks_Unregister();
 	ProcessCallbacks_Unregister();
 	ProcessList_Cleanup();
@@ -131,7 +131,21 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	DriverObject->DriverUnload = DriverUnload;
 
 
-	/*status = ObCallbacks_Register(&g_ObCtx);
+	status = ProcessCallbacks_Register();
+
+	if (!NT_SUCCESS(status)) {
+		KdPrint(("[ScoutAC] Failed to register process callbacks! Error: 0x%X\n", status));
+
+		IoDeleteSymbolicLink(&dosDeviceName);
+		IoDeleteDevice(pDeviceObject);
+		pDeviceObject = NULL;
+
+		return status;
+
+	}
+
+
+	status = ObCallbacks_Register(&g_ObCtx);
 
 	if (!NT_SUCCESS(status)) {
 		KdPrint(("[ScoutAC] Failed to register object callbacks! Error: 0x%X\n", status));
@@ -142,7 +156,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 
 		return status;
 		
-	}*/
+	}
 
 	status = ThreadCallbacks_Register();
 
@@ -157,18 +171,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 
 	}
 
-	status = ProcessCallbacks_Register();
 
-	if (!NT_SUCCESS(status)) {
-		KdPrint(("[ScoutAC] Failed to register process callbacks! Error: 0x%X\n", status));
-
-		IoDeleteSymbolicLink(&dosDeviceName);
-		IoDeleteDevice(pDeviceObject);
-		pDeviceObject = NULL;
-
-		return status;
-
-	}
 
 
 
