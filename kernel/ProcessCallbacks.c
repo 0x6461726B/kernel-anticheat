@@ -5,7 +5,7 @@ VOID OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
 
 	if (!CreateInfo) {
 		if (ProcessList_IsProtected(Process)) {
-			ProcessList_Remove(Process);
+			ProcessList_Remove(ProcessId);
 			KdPrint(("[ScoutAC] Protected process %llu exited, removed from list\n", (ULONG64)ProcessId));
 		}
 	}

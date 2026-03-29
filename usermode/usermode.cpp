@@ -70,9 +70,33 @@ int main()
     
 
     while (true) {
-        Sleep(10);
+
+        if (GetAsyncKeyState(VK_INSERT) & 1) {
+            success = DeviceIoControl(
+                hDevice,
+                IOCTL_TRIGGER_MEMSCAN,
+                NULL,
+                0,
+                nullptr,
+                0,
+                &bytesReturned,
+                nullptr);
+
+            if (success) {
+                std::cout << "Triggered memscan process successfully." << std::endl;
+            }
+            else {
+                std::cout << "Failed to trigger memscan. Error code: "<< GetLastError() << std::endl;
+            }
+        }
+
+
+
         if (GetAsyncKeyState(VK_END) & 1)
             break;
+
+        Sleep(10);
+
     }
 
     CloseHandle(hDevice);

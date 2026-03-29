@@ -25,11 +25,14 @@
     <ClCompile Include="ProcessCallbacks.c" />
     <ClCompile Include="ProcessList.c" />
     <ClCompile Include="ThreadCallbacks.c" />
+    <ClCompile Include="VadWalker.c" />
     <ClInclude Include="ImageCallbacks.h" />
     <ClInclude Include="ObCallbacks.h" />
     <ClInclude Include="ProcessCallbacks.h" />
     <ClInclude Include="ProcessList.h" />
     <ClInclude Include="ThreadCallbacks.h" />
+    <ClInclude Include="VadTypes.h" />
+    <ClInclude Include="VadWalker.h" />
   </ItemGroup>
   <ItemGroup>
     <Inf Include="kernel.inf" />

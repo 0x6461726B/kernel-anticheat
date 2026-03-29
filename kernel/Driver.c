@@ -1,4 +1,4 @@
-#include <ntddk.h>
+#include <ntifs.h>
 
 #include "shared.h"
 #include "ObCallbacks.h"
@@ -6,7 +6,7 @@
 #include "ProcessList.h"
 #include "ImageCallbacks.h"
 #include "ProcessCallbacks.h"
-
+#include "VadWalker.h"
 
 PDEVICE_OBJECT pDeviceObject = NULL;
 static OB_CALLBACK_CONTEXT g_ObCtx = { 0 };
@@ -48,7 +48,22 @@ NTSTATUS MyIrpDeviceControlHandler(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 		}
 		ULONG pid = *(ULONG*)Irp->AssociatedIrp.SystemBuffer;
 		status = ProcessList_Add((HANDLE)pid);
-		KdPrint(("[ScoutAC] Protected process 0x%X\n", pid));
+
+		if (NT_SUCCESS(status))
+			KdPrint(("[ScoutAC] Protected process 0x%X\n", pid));
+
+		break;
+	}
+	case IOCTL_TRIGGER_MEMSCAN: {
+		PEPROCESS Process = ProcessList_GetProtectedProcess();
+
+		if (!Process) {
+			status = STATUS_INVALID_DEVICE_STATE;
+			break;
+		}
+
+		VadWalk(Process);
+		ObDereferenceObject(Process);
 		break;
 	}
 
@@ -73,9 +88,10 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 
 	IoDeleteSymbolicLink(&dosDeviceName);
 
-	ObCallbacks_Unregister(&g_ObCtx);
+	//ObCallbacks_Unregister(&g_ObCtx);
 	ThreadCallbacks_Unregister();
 	ProcessCallbacks_Unregister();
+	ImageCallbacks_Unregister();
 	ProcessList_Cleanup();
 
 
@@ -145,24 +161,27 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	}
 
 
-	status = ObCallbacks_Register(&g_ObCtx);
+	/*status = ObCallbacks_Register(&g_ObCtx);
 
 	if (!NT_SUCCESS(status)) {
 		KdPrint(("[ScoutAC] Failed to register object callbacks! Error: 0x%X\n", status));
 
+		ProcessCallbacks_Unregister();
 		IoDeleteSymbolicLink(&dosDeviceName);
 		IoDeleteDevice(pDeviceObject);
 		pDeviceObject = NULL;
 
 		return status;
 		
-	}
+	}*/
 
 	status = ThreadCallbacks_Register();
 
 	if (!NT_SUCCESS(status)) {
 		KdPrint(("[ScoutAC] Failed to register thread callbacks! Error: 0x%X\n", status));
 
+		ProcessCallbacks_Unregister();
+		//ObCallbacks_Unregister(&g_ObCtx);
 		IoDeleteSymbolicLink(&dosDeviceName);
 		IoDeleteDevice(pDeviceObject);
 		pDeviceObject = NULL;
@@ -171,6 +190,21 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 
 	}
 
+	status = ImageCallbacks_Register();
+
+	if (!NT_SUCCESS(status)) {
+		KdPrint(("[ScoutAC] Failed to register image callbacks! Error: 0x%X\n", status));
+
+		ProcessCallbacks_Unregister();
+		//ObCallbacks_Unregister(&g_ObCtx);
+		ThreadCallbacks_Unregister();
+		IoDeleteSymbolicLink(&dosDeviceName);
+		IoDeleteDevice(pDeviceObject);
+		pDeviceObject = NULL;
+
+		return status;
+
+	}
 
 
 

@@ -43,14 +43,13 @@ NTSTATUS ProcessList_Add(HANDLE pid) {
 }
 
 VOID ProcessList_Remove(HANDLE pid) {
-	PEPROCESS toDeref = NULL;
 	KIRQL irql;
 	KeAcquireSpinLock(&g_Lock, &irql);
 
 
 	for (ULONG i = 0; i < g_ProtectedCount; i++) {
 		if (g_ProtectedList[i].Pid == pid) {
-			toDeref = g_ProtectedList[i].Process;
+			ObDereferenceObject(g_ProtectedList[i].Process);
 			g_ProtectedList[i] = g_ProtectedList[g_ProtectedCount - 1];
 			RtlZeroMemory(&g_ProtectedList[g_ProtectedCount - 1], sizeof(PROTECTED_PROCESS));
 			g_ProtectedCount--;
@@ -59,9 +58,6 @@ VOID ProcessList_Remove(HANDLE pid) {
 	}
 
 	KeReleaseSpinLock(&g_Lock, irql);
-
-	if (toDeref)
-		ObDereferenceObject(toDeref);
 }
 
 BOOLEAN ProcessList_IsProtected(PEPROCESS process) {
@@ -105,4 +101,18 @@ VOID ProcessList_Cleanup(VOID) {
 	g_ProtectedCount = 0;
 	KeReleaseSpinLock(&g_Lock, irql);
 
+}
+
+PEPROCESS ProcessList_GetProtectedProcess(VOID) {
+	KIRQL irql;
+	KeAcquireSpinLock(&g_Lock, &irql);
+
+	if (g_ProtectedCount >= 1) {
+		ObReferenceObject(g_ProtectedList[0].Process);
+		KeReleaseSpinLock(&g_Lock, irql);
+		return g_ProtectedList[0].Process;
+	}
+
+	KeReleaseSpinLock(&g_Lock, irql);
+	return NULL;
 }
