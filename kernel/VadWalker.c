@@ -86,7 +86,7 @@ VOID VadWalk(PEPROCESS Process) {
 	PRTL_AVL_TREE vadTree = (PRTL_AVL_TREE)((PUCHAR)Process + 0x558); // win11 25h2 (https://www.vergiliusproject.com/kernels/x64/windows-11/25h2/_EPROCESS)
 
 
-    HANDLE Pid = PsGetProcessId(Process);
+    //HANDLE Pid = PsGetProcessId(Process);
 
    // KdPrint(("[ScoutAC] Starting VAD scan for pid: %X\n", Pid));
 

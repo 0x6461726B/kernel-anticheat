@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ApcChecker.c" />
+    <ClCompile Include="DetectDrivers.c" />
     <ClCompile Include="Driver.c" />
     <ClCompile Include="ImageCallbacks.c" />
     <ClCompile Include="ObCallbacks.c" />
@@ -29,6 +30,7 @@
     <ClCompile Include="ThreadCallbacks.c" />
     <ClCompile Include="VadWalker.c" />
     <ClInclude Include="ApcChecker.h" />
+    <ClInclude Include="DetectDrivers.h" />
     <ClInclude Include="ImageCallbacks.h" />
     <ClInclude Include="ObCallbacks.h" />
     <ClInclude Include="ProcessCallbacks.h" />

@@ -3,11 +3,12 @@
 #include "ProcessList.h"
 #include "ApcChecker.h"
 #include "VadWalker.h"
+#include "DetectDrivers.h"
 
 KTIMER gTimer;
 KDPC gDpc;
 HANDLE gThreadHandle;
-volatile BOOLEAN gRunning = TRUE;
+BOOLEAN gRunning = TRUE;
 KEVENT gWakeEvent;
 
 VOID ScanDpc(KDPC Dpc, PVOID Context, PVOID Arg1, PVOID Arg2) {
@@ -23,6 +24,8 @@ VOID ScannerThread(PVOID Context) {
     KeInitializeEvent(&gWakeEvent, SynchronizationEvent, FALSE);
     KeInitializeTimer(&gTimer);
     KeInitializeDpc(&gDpc, (PKDEFERRED_ROUTINE)ScanDpc, &gWakeEvent);
+
+    KdPrint(("[ScoutAC] Initialized watchdog thread.\n"));
 
     while (gRunning) {
         LARGE_INTEGER interval;
@@ -41,7 +44,8 @@ VOID ScannerThread(PVOID Context) {
             //CheckAPCForSus(proc);
 
         }
-        
+        CheckKernelThreads();
+
     }
     PsTerminateSystemThread(STATUS_SUCCESS);
 }

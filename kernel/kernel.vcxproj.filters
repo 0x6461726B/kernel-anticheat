@@ -72,6 +72,9 @@
     <ClCompile Include="Scanner.c">
       <Filter>core</Filter>
     </ClCompile>
+    <ClCompile Include="DetectDrivers.c">
+      <Filter>detections\kernel</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\shared.h">
@@ -103,6 +106,9 @@
     </ClInclude>
     <ClInclude Include="Scanner.h">
       <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="DetectDrivers.h">
+      <Filter>detections\kernel</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
