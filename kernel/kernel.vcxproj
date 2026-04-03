@@ -19,17 +19,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ApcChecker.c" />
     <ClCompile Include="Driver.c" />
     <ClCompile Include="ImageCallbacks.c" />
     <ClCompile Include="ObCallbacks.c" />
     <ClCompile Include="ProcessCallbacks.c" />
     <ClCompile Include="ProcessList.c" />
+    <ClCompile Include="Scanner.c" />
     <ClCompile Include="ThreadCallbacks.c" />
     <ClCompile Include="VadWalker.c" />
+    <ClInclude Include="ApcChecker.h" />
     <ClInclude Include="ImageCallbacks.h" />
     <ClInclude Include="ObCallbacks.h" />
     <ClInclude Include="ProcessCallbacks.h" />
     <ClInclude Include="ProcessList.h" />
+    <ClInclude Include="Scanner.h" />
     <ClInclude Include="ThreadCallbacks.h" />
     <ClInclude Include="VadTypes.h" />
     <ClInclude Include="VadWalker.h" />
@@ -116,7 +120,7 @@
     </DriverSign>
     <PostBuildEvent>
       <Command>if exist Z:\ (
-    copy /Y "$(TargetPath)" "Z:\"
+    copy /Y "$(TargetPath)" "Z:\defender\"
     echo Successfully teleported to VM.
 ) else (
     echo VM is offline. Build succeeded, but file was NOT copied.
@@ -139,7 +143,7 @@
     </DriverSign>
     <PostBuildEvent>
       <Command>if exist Z:\ (
-    copy /Y "$(TargetPath)" "Z:\"
+    copy /Y "$(TargetPath)" "Z:\defender\"
     echo Successfully teleported to VM.
 ) else (
     echo VM is offline. Build succeeded, but file was NOT copied.

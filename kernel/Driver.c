@@ -7,6 +7,7 @@
 #include "ImageCallbacks.h"
 #include "ProcessCallbacks.h"
 #include "VadWalker.h"
+#include "Scanner.h"
 
 PDEVICE_OBJECT pDeviceObject = NULL;
 static OB_CALLBACK_CONTEXT g_ObCtx = { 0 };
@@ -87,6 +88,16 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 	RtlInitUnicodeString(&dosDeviceName, L"\\DosDevices\\ScoutAC");
 
 	IoDeleteSymbolicLink(&dosDeviceName);
+
+	gRunning = FALSE;
+	KeCancelTimer(&gTimer);
+	KeSetEvent(&gWakeEvent, 0, FALSE);
+	PVOID threadObj;
+	ObReferenceObjectByHandle(gThreadHandle, THREAD_ALL_ACCESS, NULL, KernelMode, &threadObj, NULL);
+	KeWaitForSingleObject(threadObj, Executive, KernelMode, FALSE, NULL);
+	ObDereferenceObject(threadObj);
+	ZwClose(gThreadHandle);
+
 
 	//ObCallbacks_Unregister(&g_ObCtx);
 	ThreadCallbacks_Unregister();
@@ -206,7 +217,22 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 
 	}
 
+	status = PsCreateSystemThread(&gThreadHandle, THREAD_ALL_ACCESS, NULL, NULL, NULL, ScannerThread, NULL);
 
+	if (!NT_SUCCESS(status)) {
+		KdPrint(("[ScoutAC] Failed to create watchdog thread! Error: 0x%X\n", status));
+
+		ProcessCallbacks_Unregister();
+		//ObCallbacks_Unregister(&g_ObCtx);
+		ThreadCallbacks_Unregister();
+		ImageCallbacks_Unregister();
+		IoDeleteSymbolicLink(&dosDeviceName);
+		IoDeleteDevice(pDeviceObject);
+		pDeviceObject = NULL;
+
+		return status;
+
+	}
 
 
 	KdPrint(("[ScoutAC] Driver loaded!\n"));

@@ -62,7 +62,7 @@ int main()
         nullptr);
 
     if (success) {
-        std::cout << "Protected process: " << processID << " successfully." << std::endl;
+        std::cout << "Protected process: " << std::dec << processID << " successfully." << std::endl;
     }
     else {
         std::cout << "Failed to protect process. Error code: " << GetLastError() << std::endl;
@@ -95,7 +95,7 @@ int main()
         if (GetAsyncKeyState(VK_END) & 1)
             break;
 
-        Sleep(10);
+        SleepEx(50, FALSE);
 
     }
 

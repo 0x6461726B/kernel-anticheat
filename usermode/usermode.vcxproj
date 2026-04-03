@@ -132,7 +132,7 @@
     </Link>
     <PostBuildEvent>
       <Command>if exist Z:\ (
-    copy /Y "$(TargetPath)" "Z:\"
+    copy /Y "$(TargetPath)" "Z:\defender\"
     echo Successfully teleported to VM.
 ) else (
     echo VM is offline. Build succeeded, but file was NOT copied.
@@ -156,7 +156,7 @@
     </Link>
     <PostBuildEvent>
       <Command>if exist Z:\ (
-    copy /Y "$(TargetPath)" "Z:\"
+    copy /Y "$(TargetPath)" "Z:\defender\"
     echo Successfully teleported to VM.
 ) else (
     echo VM is offline. Build succeeded, but file was NOT copied.

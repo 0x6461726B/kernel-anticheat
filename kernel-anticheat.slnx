@@ -1,10 +1,12 @@
 <Solution>
   <Configurations>
     <Platform Name="x64" />
-    <Platform Name="x86" />
   </Configurations>
+  <Project Path="attacker-client/attacker-client.vcxproj" Id="3f2b6968-a972-4a6f-840d-69ddd8de33a7" />
+  <Project Path="attacker-driver/attacker-driver.vcxproj">
+    <Deploy />
+  </Project>
   <Project Path="kernel/kernel.vcxproj">
-    <Platform Project="x64" />
     <Deploy />
   </Project>
   <Project Path="usermode/usermode.vcxproj" Id="403403e7-3baa-4b71-88c8-11f79e05de84" />

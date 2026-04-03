@@ -20,9 +20,6 @@
     <Filter Include="callbacks">
       <UniqueIdentifier>{43c7e17e-1670-442c-8088-9c0fe043f557}</UniqueIdentifier>
     </Filter>
-    <Filter Include="utils">
-      <UniqueIdentifier>{f3811adf-6cd3-4345-b4b5-4d756b7a6738}</UniqueIdentifier>
-    </Filter>
     <Filter Include="detections">
       <UniqueIdentifier>{ab4a4f3a-b95b-482d-b1e3-1327e6d9392e}</UniqueIdentifier>
     </Filter>
@@ -34,6 +31,12 @@
     </Filter>
     <Filter Include="detections\memory\vad">
       <UniqueIdentifier>{15fc7e60-5481-48bb-8190-73a6fab4410f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="detections\memory\apc">
+      <UniqueIdentifier>{eb1921d6-1f66-4630-8388-d37a276bbb0e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core">
+      <UniqueIdentifier>{499768e0-0d71-403f-930f-244a199127cb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -48,9 +51,6 @@
     <ClCompile Include="ObCallbacks.c">
       <Filter>callbacks</Filter>
     </ClCompile>
-    <ClCompile Include="ProcessList.c">
-      <Filter>utils</Filter>
-    </ClCompile>
     <ClCompile Include="ThreadCallbacks.c">
       <Filter>callbacks</Filter>
     </ClCompile>
@@ -63,6 +63,15 @@
     <ClCompile Include="VadWalker.c">
       <Filter>detections\memory\vad</Filter>
     </ClCompile>
+    <ClCompile Include="ApcChecker.c">
+      <Filter>detections\memory\apc</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessList.c">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="Scanner.c">
+      <Filter>core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\shared.h">
@@ -70,9 +79,6 @@
     </ClInclude>
     <ClInclude Include="ObCallbacks.h">
       <Filter>callbacks</Filter>
-    </ClInclude>
-    <ClInclude Include="ProcessList.h">
-      <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="ThreadCallbacks.h">
       <Filter>callbacks</Filter>
@@ -88,6 +94,15 @@
     </ClInclude>
     <ClInclude Include="VadWalker.h">
       <Filter>detections\memory\vad</Filter>
+    </ClInclude>
+    <ClInclude Include="ApcChecker.h">
+      <Filter>detections\memory\apc</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessList.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="Scanner.h">
+      <Filter>core</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
