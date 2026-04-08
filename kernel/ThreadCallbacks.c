@@ -60,48 +60,32 @@ VOID OnThreadCreate(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 		return;
 	}
 
-
-	HANDLE hProcess = NULL;
-
-	 status = ObOpenObjectByPointer(
-		process,
-		OBJ_KERNEL_HANDLE,
-		NULL,
-		PROCESS_ALL_ACCESS,
-		NULL,
-		KernelMode,
-		&hProcess
-		);
-
-	if (!NT_SUCCESS(status)) {
-		ZwClose(hThread);
-		ObDereferenceObject(thread);
-		ObDereferenceObject(process);
-		return;
-	}
+	KAPC_STATE apcState;
+	KeStackAttachProcess(process, &apcState);
 
 	MEMORY_BASIC_INFORMATION mbi = { 0 };
 	SIZE_T retLen2;
 
 	if (!NT_SUCCESS(ZwQueryVirtualMemory(
-		hProcess,
+		ZwCurrentProcess(),
 		startAddy,
 		MemoryBasicInformation,
 		&mbi,
 		sizeof(mbi),
 		&retLen2
 	))) {
-		ZwClose(hProcess);
+		KeUnstackDetachProcess(&apcState);
 		ObDereferenceObject(thread);
 		ObDereferenceObject(process);
 		return;
 	}
 
+	KeUnstackDetachProcess(&apcState);
+
 	if (mbi.Type != MEM_IMAGE) {
 		KdPrint(("[ScoutAC] Unbacked Thread detected at %p EPROCESS: %p\n", startAddy, process));
 	}
 	ZwClose(hThread);
-	ZwClose(hProcess);
 	ObDereferenceObject(thread);
 	ObDereferenceObject(process);
 

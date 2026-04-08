@@ -11,7 +11,7 @@ HANDLE gThreadHandle;
 BOOLEAN gRunning = TRUE;
 KEVENT gWakeEvent;
 
-VOID ScanDpc(KDPC Dpc, PVOID Context, PVOID Arg1, PVOID Arg2) {
+static VOID ScanDpc(KDPC Dpc, PVOID Context, PVOID Arg1, PVOID Arg2) {
     UNREFERENCED_PARAMETER(Dpc);
     UNREFERENCED_PARAMETER(Arg1);
     UNREFERENCED_PARAMETER(Arg2);
@@ -40,6 +40,7 @@ VOID ScannerThread(PVOID Context) {
 
         PEPROCESS proc = ProcessList_GetProtectedProcess();
         if (proc) {
+
             VadWalk(proc);
             //CheckAPCForSus(proc);
 
