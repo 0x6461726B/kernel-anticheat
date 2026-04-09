@@ -4,6 +4,7 @@
 #include "ApcChecker.h"
 #include "VadWalker.h"
 #include "DetectDrivers.h"
+#include "AttachedDetection.h"
 
 KTIMER gTimer;
 KDPC gDpc;
@@ -46,6 +47,7 @@ VOID ScannerThread(PVOID Context) {
 
         }
         CheckKernelThreads();
+        CheckSusAttachements();
 
     }
     PsTerminateSystemThread(STATUS_SUCCESS);

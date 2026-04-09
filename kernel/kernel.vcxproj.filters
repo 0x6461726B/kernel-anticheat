@@ -75,6 +75,9 @@
     <ClCompile Include="DetectDrivers.c">
       <Filter>detections\kernel</Filter>
     </ClCompile>
+    <ClCompile Include="AttachedDetection.c">
+      <Filter>detections\kernel</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\shared.h">
@@ -108,6 +111,9 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="DetectDrivers.h">
+      <Filter>detections\kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="AttachedDetection.h">
       <Filter>detections\kernel</Filter>
     </ClInclude>
   </ItemGroup>
