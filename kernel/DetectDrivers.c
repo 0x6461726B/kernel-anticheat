@@ -47,7 +47,7 @@ VOID CheckKernelThreads(VOID) {
 			ULONG_PTR dllBase = (ULONG_PTR)moduleEntry->DllBase;
 			ULONG_PTR dllEnd = dllBase + moduleEntry->SizeOfImage;
 
-			if (threadStartAddy >= dllBase && threadStartAddy <= dllEnd) {
+			if (threadStartAddy >= dllBase && threadStartAddy < dllEnd) {
 				isModuleLegit = TRUE;
 				break;
 			}
