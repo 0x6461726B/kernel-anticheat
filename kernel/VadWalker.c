@@ -1,7 +1,52 @@
 #include <ntifs.h>
+#include "globals.h"
 #include "VadWalker.h"
 #include "VadTypes.h"
 
+
+static VOID CheckPteFlipsInRange(PEPROCESS Process, ULONG64 startVa, ULONG64 endVa) {
+    ULONGLONG cr3 = *(ULONGLONG*)((PUCHAR)Process + 0x28); // KPROCESS DirectoryTableBase
+    PHYSICAL_ADDRESS physAddy;
+    physAddy.QuadPart = cr3;
+
+    PPML4E pml4 = (PPML4E)MmGetVirtualForPhysical(physAddy);
+    if (!pml4 || !MmIsAddressValid(pml4)) return;
+
+    for (ULONG64 va = startVa; va < endVa; va += PAGE_SIZE) {
+        // decompose VA into table indices
+        ULONG pml4Index = (va >> 39) & 0x1FF;
+        ULONG pdptIndex = (va >> 30) & 0x1FF;
+        ULONG pdeIndex = (va >> 21) & 0x1FF;
+        ULONG pteIndex = (va >> 12) & 0x1FF;
+
+        if (!pml4[pml4Index].Present) { va = (va & ~0x7FFFFFFFFFULL) + 0x8000000000ULL - PAGE_SIZE; continue; } // align to boundary, then add size of region to skip rest
+
+        physAddy.QuadPart = (ULONGLONG)pml4[pml4Index].PageFrameNumber << PAGE_SHIFT;
+        PPDPT pdpt = (PPDPT)MmGetVirtualForPhysical(physAddy);
+        if (!pdpt || !MmIsAddressValid(pdpt)) continue;
+
+        if (!pdpt[pdptIndex].Present) { va = (va & ~0x3FFFFFFFULL) + 0x40000000ULL - PAGE_SIZE; continue; }
+        if (pdpt[pdptIndex].PageSize) continue; // 1gb page, skip
+
+        physAddy.QuadPart = (ULONGLONG)pdpt[pdptIndex].PageFrameNumber << PAGE_SHIFT;
+        PPDE pde = (PPDE)MmGetVirtualForPhysical(physAddy);
+        if (!pde || !MmIsAddressValid(pde)) continue;
+
+        if (!pde[pdeIndex].Present) { va = (va & ~0x1FFFFFULL) + 0x200000ULL - PAGE_SIZE; continue; }
+        if (pde[pdeIndex].PageSize) continue; // 2mb page, skip
+
+        physAddy.QuadPart = (ULONGLONG)pde[pdeIndex].PageFrameNumber << PAGE_SHIFT;
+        PPTE pte = (PPTE)MmGetVirtualForPhysical(physAddy);
+        if (!pte || !MmIsAddressValid(pte)) continue;
+
+        if (!pte[pteIndex].Present) continue;
+
+        // PTE says executable but VAD said non-executable -> flip
+        if (pte[pteIndex].ExecuteDisable == 0) {
+            KdPrint(("[ScoutAC] PTE flip detected at VA: 0x%llx\n", va));
+        }
+    }
+}
 
 //MiGetFirstVad implementation
 static RTL_BALANCED_NODE* GetFirstVad(PEPROCESS Process) {
@@ -65,12 +110,13 @@ VOID VadWalk(PEPROCESS Process) {
 
 
     KeEnterCriticalRegion();
-    ExAcquirePushLockSharedEx((PEX_PUSH_LOCK)(PUCHAR)Process + 0x258, 0); // 0x258 = AddressCreationLock
+    ExAcquirePushLockSharedEx((PEX_PUSH_LOCK)((PUCHAR)Process + 0x258), 0); // 0x258 = AddressCreationLock
 
     RTL_BALANCED_NODE* node = GetFirstVad(Process);
 
     while (node) {
 
+        //BOOLEAN protectionFlipped = FALSE;
         PMMVAD vad = (PMMVAD)node;
         ULONG baseProtection = vad->Core.u.VadFlags.Protection & 0x7;
 
@@ -88,28 +134,38 @@ VOID VadWalk(PEPROCESS Process) {
         // If current protection has execute but VAD has non execute, the region was likely injected code
         if (vad->Core.u.VadFlags.PrivateMemory && IsNonExecutableVadProtection(baseProtection)) {
 
-            ULONG64 addr = start;
-            while (addr < end) {
-                MEMORY_BASIC_INFORMATION mbi;
-                SIZE_T retLen;
-                NTSTATUS status = ZwQueryVirtualMemory(NtCurrentProcess(),
-                    (PVOID)addr,
-                    MemoryBasicInformation,
-                    &mbi,
-                    sizeof(mbi),
-                    &retLen
-                );
+            CheckPteFlipsInRange(Process, start, end);
 
-                if (!NT_SUCCESS(status)) break;
+             //ULONG64 addr = start;
 
-                if (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
-                    PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) {
-                    KdPrint(("[ScoutAC] Protection flip: VAD=%u, Current=0x%X at %llx\n", vad->Core.u.VadFlags.Protection, mbi.Protect, addr));
-                }
-                addr = (ULONG64)mbi.BaseAddress + mbi.RegionSize;
 
-            }
+             //while (addr < end) {
+             //    MEMORY_BASIC_INFORMATION mbi;
+             //    SIZE_T retLen;
+             //    NTSTATUS status = ZwQueryVirtualMemory(NtCurrentProcess(),
+             //        (PVOID)addr,
+             //        MemoryBasicInformation,
+             //        &mbi,
+             //        sizeof(mbi),
+             //        &retLen
+             //    );
+
+
+
+             //    if (!NT_SUCCESS(status)) break;
+
+             //    //KdPrint(("[ScoutAC] Region size %u\n", mbi.RegionSize));
+
+
+             //    if (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+             //        PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) {
+             //        KdPrint(("[ScoutAC] Protection flip: VAD=%u, Current=0x%X at %llx\n", vad->Core.u.VadFlags.Protection, mbi.Protect, addr));
+             //    }
+             //    addr = (ULONG64)mbi.BaseAddress + mbi.RegionSize;
+
+             //}
         }
+        
 
         if (!vad->Core.u.VadFlags.PrivateMemory && vad->FileObject == NULL && vad->Subsection != NULL) {
             PCONTROL_AREA ca = vad->Subsection->ControlArea;
@@ -124,11 +180,15 @@ VOID VadWalk(PEPROCESS Process) {
 
         }
 
+        //if (protectionFlipped) {
+        //    KdPrint(("[ScoutAC] Protection flip detected.\n"));
+        //}
+
 
         node = GetNextVad(node);
     }
 
-    ExReleasePushLockSharedEx((PEX_PUSH_LOCK)(PUCHAR)Process + 0x258, 0);
+    ExReleasePushLockSharedEx((PEX_PUSH_LOCK)((PUCHAR)Process + 0x258), 0);
     KeLeaveCriticalRegion();
 
     KeUnstackDetachProcess(&apcState);

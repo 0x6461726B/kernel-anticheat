@@ -14,7 +14,6 @@ typedef struct _LDR_DATA_TABLE_ENTRY {
 
 
 extern PLIST_ENTRY PsLoadedModuleList;
-extern ERESOURCE* PsLoadedModuleResource;
 
 //offsets are from win11 25h2
 VOID CheckKernelThreads(VOID) {

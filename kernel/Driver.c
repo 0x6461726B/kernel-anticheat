@@ -8,11 +8,14 @@
 #include "ProcessCallbacks.h"
 #include "VadWalker.h"
 #include "Scanner.h"
+#include "globals.h"
+
+PVOID g_DriverBase = NULL;
+ULONG g_DriverSize = 0;
+
 
 PDEVICE_OBJECT pDeviceObject = NULL;
 static OB_CALLBACK_CONTEXT g_ObCtx = { 0 };
-
-
 
 NTSTATUS DispatchCreateClose(PDEVICE_OBJECT DriverObject, PIRP irp) {
 	UNREFERENCED_PARAMETER(DriverObject);
@@ -158,6 +161,10 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	DriverObject->DriverUnload = DriverUnload;
 
 
+	g_DriverBase = DriverObject->DriverStart;
+	g_DriverSize = DriverObject->DriverSize;
+
+
 	status = ProcessCallbacks_Register();
 
 	if (!NT_SUCCESS(status)) {
@@ -233,6 +240,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 		return status;
 
 	}
+
 
 
 	KdPrint(("[ScoutAC] Driver loaded!\n"));

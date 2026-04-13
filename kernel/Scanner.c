@@ -43,11 +43,15 @@ VOID ScannerThread(PVOID Context) {
         if (proc) {
 
             VadWalk(proc);
+            //PteScan(proc);
             //CheckAPCForSus(proc);
+            ObDereferenceObject(proc);
 
         }
+
         CheckKernelThreads();
         CheckSusAttachements();
+       
 
     }
     PsTerminateSystemThread(STATUS_SUCCESS);

@@ -33,6 +33,7 @@
     <ClInclude Include="ApcChecker.h" />
     <ClInclude Include="AttachedDetection.h" />
     <ClInclude Include="DetectDrivers.h" />
+    <ClInclude Include="globals.h" />
     <ClInclude Include="ImageCallbacks.h" />
     <ClInclude Include="ObCallbacks.h" />
     <ClInclude Include="ProcessCallbacks.h" />
