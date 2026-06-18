@@ -8,23 +8,26 @@ ScoutAC monitors a protected process and looks for common cheat injection techni
 
 ### Callbacks
 
-- **`PsSetCreateProcessNotifyRoutineEx`** — tracks protected process lifetime and cleans up state on exit
-- **`PsSetCreateThreadNotifyRoutine`** — on every new thread created inside the protected process, queries the Win32 start address via `ZwQueryInformationThread` and flags anything not backed by a mapped image (`MEM_IMAGE`)
-- **`PsSetLoadImageNotifyRoutine`** — alerts on modules loading into the protected process below a configurable signature level, catching unsigned and developer-signed DLLs
-- **`ObRegisterCallbacks`** — strips dangerous access rights (VM read/write, terminate, suspend/resume) from any handle opened to the protected process or its threads by an external process
+- **Process Lifetime Tracking (`PsSetCreateProcessNotifyRoutineEx`)**: Registers a process creation/destruction callback to dynamically track when the protected process spawns or exits. It handles internal memory cleanup and securely resets driver unload states on target termination.
+- **Thread Context Validation (`PsSetCreateThreadNotifyRoutine`)**: Registers a thread tracking routine that intercepts every newly created thread inside the target process. It queries the thread's Win32 start address via `ZwQueryInformationThread` and evaluates the memory allocation type to verify it is backed by a valid, mapped module image (`MEM_IMAGE`), successfully identifying unbacked execution lines.
+- **Module Load Auditing (`PsSetLoadImageNotifyRoutine`)**: Monitors libraries loading into the process context. It references image signature levels to flag and log modules that fall below safe code-integrity tiers (such as unsigned or test-signed binaries).
+- **Access Mask Stripping (`ObRegisterCallbacks`)**: Sets up a pre-operation handle filter targeting process and thread object creation/duplication requests. When external actors attempt to open handles to the game, it strictly strips invasive permissions (like `PROCESS_VM_READ`, `PROCESS_VM_WRITE`, or `PROCESS_TERMINATE`) down to restricted query-only masks.
 
-### Periodic scan (system thread, 1s interval)
-
-- **VAD tree walk** — walks the target process's virtual address descriptor tree looking for private executable regions, protection flips from non-executable to executable (indicating `VirtualProtect`-based injection), and anonymous mapped sections with execute permissions (indicating `NtMapViewOfSection`-based injection)
-- **Kernel thread audit** — cross-references all system thread start addresses against `PsLoadedModuleList`, flagging threads not backed by any loaded driver
-- **APC queue inspection** — walks the user-mode APC queue (`ApcListHead[1]`) for each thread in the protected process, flagging `NormalRoutine` pointers landing in private or anonymous executable memory
+### 2. Periodic Memory Scan
+- **VAD Tree Audit**: Spawns a background thread to walk the target process's Virtual Address Descriptor (`MMVAD`) binary search tree to identify memory irregularities:
+  - Searches for private allocations erroneously marked with executable flags (RWX memory space).
+  - Evaluates individual Page Table Entries (PTEs) to catch **PTE Flips**, where page flags are hidden/changed to executable while the higher-level VAD mapping declares it non-executable.
+  - Flags anomalous section-mapped memory regions operating without a valid underlying `FILE_OBJECT` backing them on disk.
+- **Cross-Process Attachment Audit**: Periodically loops through system threads to evaluate their thread attachment states. It flags threads that have attached themselves to the target process's virtual address space via `KeStackAttachProcess` mechanics (auditing the internal `ApcStateIndex`).
+- **Kernel Thread Verification**: Scans running system-space threads against the global `PsLoadedModuleList` to ensure their start vectors are located inside officially registered drivers, detecting manual mapped drivers.
+- **Asynchronous Procedure Call (APC) Inspection**: Examines the user-mode APC dispatch queues (`ApcListHead[1]`) for active threads inside the protected context. It flags `NormalRoutine` target addresses pointing toward unsigned, private, or anonymous executable spaces.
 
 ## Project structure
 
 ```
 kernel/     — the driver
-usermode/   — the IOCTL client (connects, registers itself as protected)
-shared/     — IOCTL definitions shared between kernel and usermode
+usermode/   — the client app
+shared/     — shared headers, IOCTL codes, and alert definitions
 ```
 
 ## Building
@@ -32,19 +35,6 @@ shared/     — IOCTL definitions shared between kernel and usermode
 Requires the Windows Driver Kit (WDK) and Visual Studio with the kernel driver toolset installed. Open `kernel-anticheat.slnx` and build.
 
 The post-build step copies the output to `Z:\defender\` if the drive is mapped — this is a VM network share used for testing. It will skip silently if the drive isn't present.
-
-## Usage
-
-Enable test signing and kernel debugging on the target machine:
-
-```
-bcdedit /set testsigning on
-bcdedit /debug on
-```
-
-Load the driver, then run the usermode client as administrator. The client will connect to `\\.\ScoutAC`, register itself as the protected process.
-
-Detection output goes to the kernel debugger via `KdPrint`. The driver is currently detect-only by design — no process termination or injection blocking, just observation and logging.
 
 ## Notes
 
