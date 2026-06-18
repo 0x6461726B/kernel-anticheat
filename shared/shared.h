@@ -9,9 +9,7 @@
 
 #define MY_DEVICE_TYPE FILE_DEVICE_UNKNOWN
 
-#define IOCTL_AC_ECHO_TEST CTL_CODE(MY_DEVICE_TYPE, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_PROTECT_PROCESS CTL_CODE(MY_DEVICE_TYPE, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_TRIGGER_MEMSCAN CTL_CODE(MY_DEVICE_TYPE, 0x802, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_PROTECT_PROCESS CTL_CODE(MY_DEVICE_TYPE, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 // kernel defs
 #ifdef _KERNEL_MODE
@@ -37,3 +35,31 @@
 	//#define MEM_MAPPED  0x40000
 	//#define MEM_PRIVATE 0x20000
 #endif
+
+#pragma once
+
+typedef struct _KERNEL_ALERT {
+	ULONG ViolationType;
+	WCHAR Description[128];
+} KERNEL_ALERT, * PKERNEL_ALERT;
+
+
+typedef unsigned long VIOLATION_ID;
+
+// ============================================================================
+// 1000 - 1999: CALLBACKS SUBSYSTEM (Folder: callbacks/)
+// ============================================================================
+#define AC_VIOLATION_THREAD_UNBACKED        1001  // ThreadCallbacks.c
+#define AC_VIOLATION_IMAGE_UNSIGNED       1002  // ImageCallbacks.c
+
+// ============================================================================
+// 3000 - 3999: KERNEL DETECTIONS (Folder: detections/kernel/)
+// ============================================================================
+#define AC_VIOLATION_DRIVER_ATTACHED    3001  // AttachedDetection.c 
+#define AC_VIOLATION_UNBACKED_DRIVER     3002  // DetectDrivers.c (e.g., mapped driver)
+
+// ============================================================================
+// 4000 - 4999: MEMORY SUBSYSTEM (Folder: memory/)
+// ============================================================================
+#define AC_VIOLATION_APC_INJECTION        4001  // memory/apc/ApcChecker.c
+#define AC_VIOLATION_VAD_MANIPULATION     4002  // memory/vad/VadWalker.c (e.g., pte flips)

@@ -4,11 +4,11 @@
 
 [Version]
 Signature   = "$WINDOWS NT$"
-Class       = System ; TODO: specify appropriate Class
-ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318} ; TODO: specify appropriate ClassGuid
+Class       = ActivityMonitor
+ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider    = %ManufacturerName%
 CatalogFile = kernel.cat
-DriverVer   = ; TODO: set DriverVer in stampinf property pages
+DriverVer   = 06/13/2026,1.0.0.0 ; Set your date/version
 PnpLockdown = 1
 
 [DestinationDirs]
@@ -47,16 +47,25 @@ ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
 StartType      = 3               ; SERVICE_DEMAND_START
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
 ServiceBinary  = %13%\kernel.sys
+LoadOrderGroup = "FSFilter Anti-Virus"
+Dependencies   = FltMgr
+AddReg         = kernel.AddRegistry
 
-[kernel_Device.NT.Wdf]
-KmdfService = kernel, kernel_wdfsect
 
-[kernel_wdfsect]
-KmdfLibraryVersion = $KMDFVERSION$
+[kernel.AddRegistry]
+HKR,,"SupportedFeatures",0x00010001,0x3
+HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
+HKR,"Instances\" %Instance1.Name%,"Altitude",0x00000000,%Instance1.Altitude%
+HKR,"Instances\" %Instance1.Name%,"Flags",0x00010001,%Instance1.Flags%
+
 
 [Strings]
 SPSVCINST_ASSOCSERVICE = 0x00000002
-ManufacturerName = "<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+ManufacturerName = "ScoutAC" ;TODO: Replace with your manufacturer name
 DiskName = "kernel Installation Disk"
 kernel.DeviceDesc = "kernel Device"
 kernel.SVCDESC = "kernel Service"
+DefaultInstance    = "kernelInstance"
+Instance1.Name     = "kernelInstance"
+Instance1.Altitude = "320000" ; 320000-329999 is standard for Anti-Virus/Anti-Cheat FS Filters
+Instance1.Flags    = 0x0         ; 0 means automatic attachment to all volumes

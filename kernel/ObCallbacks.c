@@ -4,6 +4,8 @@
 #include "ObCallbacks.h"
 #include "ProcessList.h"
 
+
+//TODO check signing level and decide to strip based on that
 OB_PREOP_CALLBACK_STATUS PreObjectCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
 	UNREFERENCED_PARAMETER(RegistrationContext);
 

@@ -1,5 +1,6 @@
 #include <ntifs.h>
 #include "ApcChecker.h"
+#include "globals.h"
 
 //offsets are for win11 25h2
 VOID CheckAPCForSus(PEPROCESS Process) {
@@ -31,9 +32,11 @@ VOID CheckAPCForSus(PEPROCESS Process) {
 				NTSTATUS status = ZwQueryVirtualMemory(ZwCurrentProcess(), (PVOID)normalRoutine, MemoryBasicInformation, &mbi, sizeof(mbi), &retLen);
 				if (NT_SUCCESS(status)) {
 					if (mbi.Type == MEM_MAPPED && mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) {
+						SendAlertToUserMode(AC_VIOLATION_APC_INJECTION, L"Sus APC routine in anonymous mapped region.");
 						KdPrint(("[ScoutAC] Sus APC routine in anonymous mapped region: 0x%llx\n", normalRoutine));
 					}
 					if (mbi.Type == MEM_PRIVATE && mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) {
+						SendAlertToUserMode(AC_VIOLATION_APC_INJECTION,  L"Sus APC routine in private executable region.");
 						KdPrint(("[ScoutAC] Sus APC routine in private executable region: 0x%llx\n", normalRoutine));
 					}
 				}

@@ -1,5 +1,7 @@
 #include <ntifs.h>
 #include "DetectDrivers.h"
+#include "globals.h"
+
 
 typedef struct _LDR_DATA_TABLE_ENTRY {
 	LIST_ENTRY InLoadOrderLinks;
@@ -54,6 +56,7 @@ VOID CheckKernelThreads(VOID) {
 			moduleListEntry = moduleListEntry->Flink;
 		}
 		if (!isModuleLegit) {
+			SendAlertToUserMode(AC_VIOLATION_UNBACKED_DRIVER, L"Kernel thread has no entry in loaded module list.");
 			KdPrint(("[ScoutAC] Suspicious kernel thread start address: 0x%llx\n", threadStartAddy));
 		}
 			

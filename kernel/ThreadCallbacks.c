@@ -2,6 +2,8 @@
 #include "ThreadCallbacks.h"
 #include "ProcessList.h"
 #include "shared.h"
+#include "globals.h"
+
 
 #define THREAD_QUERY_INFORMATION         (0x0040)  
 
@@ -83,6 +85,7 @@ VOID OnThreadCreate(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 	KeUnstackDetachProcess(&apcState);
 
 	if (mbi.Type != MEM_IMAGE) {
+		SendAlertToUserMode(AC_VIOLATION_THREAD_UNBACKED, L"Unbacked thread detected.");
 		KdPrint(("[ScoutAC] Unbacked Thread detected at %p EPROCESS: %p\n", startAddy, process));
 	}
 	ZwClose(hThread);

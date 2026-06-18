@@ -7,7 +7,7 @@
 static VOID CheckPteFlipsInRange(PEPROCESS Process, ULONG64 startVa, ULONG64 endVa) {
     ULONGLONG cr3 = *(ULONGLONG*)((PUCHAR)Process + 0x28); // KPROCESS DirectoryTableBase
     PHYSICAL_ADDRESS physAddy;
-    physAddy.QuadPart = cr3;
+    physAddy.QuadPart = cr3 & ~0xFFFull; // clear PCID bits 0-12
 
     PPML4E pml4 = (PPML4E)MmGetVirtualForPhysical(physAddy);
     if (!pml4 || !MmIsAddressValid(pml4)) return;
@@ -20,6 +20,9 @@ static VOID CheckPteFlipsInRange(PEPROCESS Process, ULONG64 startVa, ULONG64 end
         ULONG pteIndex = (va >> 12) & 0x1FF;
 
         if (!pml4[pml4Index].Present) { va = (va & ~0x7FFFFFFFFFULL) + 0x8000000000ULL - PAGE_SIZE; continue; } // align to boundary, then add size of region to skip rest
+
+        //KdPrint(("Current physical address: 0x%llx\n", (ULONGLONG)pml4[pml4Index].PageFrameNumber << PAGE_SHIFT));
+
 
         physAddy.QuadPart = (ULONGLONG)pml4[pml4Index].PageFrameNumber << PAGE_SHIFT;
         PPDPT pdpt = (PPDPT)MmGetVirtualForPhysical(physAddy);
@@ -43,7 +46,8 @@ static VOID CheckPteFlipsInRange(PEPROCESS Process, ULONG64 startVa, ULONG64 end
 
         // PTE says executable but VAD said non-executable -> flip
         if (pte[pteIndex].ExecuteDisable == 0) {
-            KdPrint(("[ScoutAC] PTE flip detected at VA: 0x%llx\n", va));
+            SendAlertToUserMode(AC_VIOLATION_VAD_MANIPULATION, L"PTE Flip detected");
+           KdPrint(("[ScoutAC] PTE flip detected at VA: 0x%llx\n", va));
         }
     }
 }
@@ -116,18 +120,14 @@ VOID VadWalk(PEPROCESS Process) {
 
     while (node) {
 
-        //BOOLEAN protectionFlipped = FALSE;
         PMMVAD vad = (PMMVAD)node;
         ULONG baseProtection = vad->Core.u.VadFlags.Protection & 0x7;
-
-        /*KdPrint(("[ScoutAC] Base protection: %u\n", baseProtection));
-        KdPrint(("[ScoutAC] Private Memory: %u\n", vad->Core.u.VadFlags.PrivateMemory));*/
 
         ULONG64 start = ((ULONG64)vad->Core.StartingVpnHigh << 32 | vad->Core.StartingVpn) << PAGE_SHIFT;
         ULONG64 end = (((ULONG64)vad->Core.EndingVpnHigh << 32 | vad->Core.EndingVpn) + 1) << PAGE_SHIFT;
 
         if (vad->Core.u.VadFlags.PrivateMemory && IsExecuteableVadProtection(baseProtection)) {
-
+            SendAlertToUserMode(AC_VIOLATION_VAD_MANIPULATION, L"RWX Private region detected.");
             KdPrint(("[ScoutAC] RWX private region: 0x%llx - 0x%llx\n", start, end));
         }
         // VAD stores original protection from allocation
@@ -135,35 +135,6 @@ VOID VadWalk(PEPROCESS Process) {
         if (vad->Core.u.VadFlags.PrivateMemory && IsNonExecutableVadProtection(baseProtection)) {
 
             CheckPteFlipsInRange(Process, start, end);
-
-             //ULONG64 addr = start;
-
-
-             //while (addr < end) {
-             //    MEMORY_BASIC_INFORMATION mbi;
-             //    SIZE_T retLen;
-             //    NTSTATUS status = ZwQueryVirtualMemory(NtCurrentProcess(),
-             //        (PVOID)addr,
-             //        MemoryBasicInformation,
-             //        &mbi,
-             //        sizeof(mbi),
-             //        &retLen
-             //    );
-
-
-
-             //    if (!NT_SUCCESS(status)) break;
-
-             //    //KdPrint(("[ScoutAC] Region size %u\n", mbi.RegionSize));
-
-
-             //    if (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
-             //        PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) {
-             //        KdPrint(("[ScoutAC] Protection flip: VAD=%u, Current=0x%X at %llx\n", vad->Core.u.VadFlags.Protection, mbi.Protect, addr));
-             //    }
-             //    addr = (ULONG64)mbi.BaseAddress + mbi.RegionSize;
-
-             //}
         }
         
 
@@ -173,16 +144,15 @@ VOID VadWalk(PEPROCESS Process) {
             if (ca != NULL) {
                 if (!ca->u.Flags.Image) {
                     ULONG protection = vad->Core.u.VadFlags.Protection;
-                    if (IsExecuteableVadProtection(protection))
+                    if (IsExecuteableVadProtection(protection)) {
                         KdPrint(("[ScoutAC] Sus mapped region found: 0x%llx - 0x%llx\n", start, end));
+                        SendAlertToUserMode(AC_VIOLATION_VAD_MANIPULATION, L"Sus mapped region.");
+                    }
                 }
             }
 
         }
 
-        //if (protectionFlipped) {
-        //    KdPrint(("[ScoutAC] Protection flip detected.\n"));
-        //}
 
 
         node = GetNextVad(node);

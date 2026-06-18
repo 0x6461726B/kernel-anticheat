@@ -34,6 +34,9 @@
     <Filter Include="core">
       <UniqueIdentifier>{499768e0-0d71-403f-930f-244a199127cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="communication">
+      <UniqueIdentifier>{41a9c33e-09e9-4982-a22a-b6b0426751e1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="kernel.inf">
@@ -73,6 +76,9 @@
     </ClCompile>
     <ClCompile Include="AttachedDetection.c">
       <Filter>detections\kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="alerts.c">
+      <Filter>communication</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -114,6 +120,9 @@
     </ClInclude>
     <ClInclude Include="globals.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="alerts.h">
+      <Filter>communication</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
