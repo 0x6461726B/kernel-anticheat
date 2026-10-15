@@ -30,6 +30,29 @@ NTSTATUS DispatchCreateClose(PDEVICE_OBJECT DriverObject, PIRP irp) {
 	return STATUS_SUCCESS;
 };
 
+NTSTATUS DispatchCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
+	UNREFERENCED_PARAMETER(DeviceObject);
+
+	KIRQL oldIrql;
+	KeAcquireSpinLock(&g_QueueLock, &oldIrql);
+
+	PIRP pending = g_PendingDetectionIrp;
+	g_PendingDetectionIrp = NULL;
+	KeReleaseSpinLock(&g_QueueLock, oldIrql);
+
+	if (pending != NULL) {
+		pending->IoStatus.Status = STATUS_CANCELLED;
+		pending->IoStatus.Information = 0;
+		IoCompleteRequest(pending, IO_NO_INCREMENT);
+	}
+
+
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	Irp->IoStatus.Information = 0;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+	return STATUS_SUCCESS;
+}
+
 NTSTATUS MyIrpDeviceControlHandler(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 	UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -52,12 +75,26 @@ NTSTATUS MyIrpDeviceControlHandler(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 		status = ProcessList_Add((HANDLE)pid);
 
 		if (NT_SUCCESS(status)) {
-			pDeviceObject->DriverObject->DriverUnload = NULL;
+			//pDeviceObject->DriverObject->DriverUnload = NULL;
 			KdPrint(("[ScoutAC] Protected process 0x%X\n", pid));
 		}
 
 		break;
 	}
+
+	case IOCTL_LISTEN_DETECTION: {
+
+		if (stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(KERNEL_ALERT)) {
+			status = STATUS_BUFFER_TOO_SMALL;
+			break;
+		}
+
+		IoMarkIrpPending(Irp);
+		StorePendingIrp(Irp);
+
+		return STATUS_PENDING;
+	}
+
 
 	default: {
 		KdPrint(("[ScoutAC] Unknown IOCTL: 0x%X\n", controlCode));
@@ -77,37 +114,39 @@ NTSTATUS MyIrpDeviceControlHandler(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 
 
-
-	if (g_ServerPort != NULL) {
-		FltCloseCommunicationPort(g_ServerPort);
-		g_ServerPort = NULL;
-	}
-
-	if (g_ClientPort != NULL && g_FilterHandle != NULL) {
-		FltCloseClientPort(g_FilterHandle, &g_ClientPort);
-		g_ClientPort = NULL;
-	}
-
-	if (g_FilterHandle != NULL) {
-		FltUnregisterFilter(g_FilterHandle);
-		g_FilterHandle = NULL;
-	}
-
-	UNICODE_STRING dosDeviceName = RTL_CONSTANT_STRING(L"\\DosDevices\\ScoutAC");
-
-	IoDeleteSymbolicLink(&dosDeviceName);
-
-	gRunning = FALSE;
-	KeSetEvent(&gWakeEvent, 0, FALSE);
-	if (gThreadHandle) {
-		ZwWaitForSingleObject(gThreadHandle, FALSE, NULL);
-		ZwClose(gThreadHandle);
-	}
-
 	ObCallbacks_Unregister(&g_ObCtx);
 	ThreadCallbacks_Unregister();
 	ProcessCallbacks_Unregister();
 	ImageCallbacks_Unregister();
+
+
+	gRunning = FALSE;
+	KeSetEvent(&gWakeEvent, IO_NO_INCREMENT, FALSE);
+	if (gThreadHandle) {
+		ZwWaitForSingleObject(gThreadHandle, FALSE, NULL);
+		ZwClose(gThreadHandle);
+		gThreadHandle = NULL;
+	}
+
+	UNICODE_STRING dosDeviceName = RTL_CONSTANT_STRING(L"\\DosDevices\\ScoutAC");
+	IoDeleteSymbolicLink(&dosDeviceName);
+
+
+	KIRQL oldIrql;
+	PIRP pending = NULL;
+
+	KeAcquireSpinLock(&g_QueueLock, &oldIrql);
+	pending = g_PendingDetectionIrp;
+	g_PendingDetectionIrp = NULL;
+	KeReleaseSpinLock(&g_QueueLock, oldIrql);
+
+
+	if (pending != NULL) {
+		pending->IoStatus.Information = 0;
+		pending->IoStatus.Status = STATUS_CANCELLED;
+		IoCompleteRequest(pending, IO_NO_INCREMENT);
+	}
+
 	ProcessList_Cleanup();
 
 	if (DriverObject->DeviceObject != NULL) {
@@ -156,6 +195,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = MyIrpDeviceControlHandler;
 	DriverObject->MajorFunction[IRP_MJ_CREATE] = DispatchCreateClose;
 	DriverObject->MajorFunction[IRP_MJ_CLOSE] = DispatchCreateClose;
+	DriverObject->MajorFunction[IRP_MJ_CLEANUP] = DispatchCleanup;
 	DriverObject->DriverUnload = DriverUnload;
 
 	g_OriginalUnloadRoutine = DriverUnload;
@@ -177,19 +217,6 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 		return status;
 
 	}
-
-	status = InitFltComms(DriverObject);
-
-	if (!NT_SUCCESS(status)) {
-		KdPrint(("[ScoutAC] Failed to init comms to UM service! Error: 0x%X\n", status));
-
-		IoDeleteSymbolicLink(&dosDeviceName);
-		IoDeleteDevice(pDeviceObject);
-		pDeviceObject = NULL;
-
-		return status;
-	}
-
 
 	status = ObCallbacks_Register(&g_ObCtx);
 

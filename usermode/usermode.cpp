@@ -3,53 +3,64 @@
 #include <process.h>
 #include <fltUser.h>
 #include "shared.h"
+#include <thread>
 
-#pragma comment(lib, "fltlib.lib")
 
-typedef struct _MINIFILTER_MESSAGE {
-    FILTER_MESSAGE_HEADER Header;
-    KERNEL_ALERT AlertData;
-} MINIFILTER_MESSAGE, * PMINIFILTER_MESSAGE;
+std::atomic<bool> g_Running = true;
+HANDLE g_hShutdownEvent = nullptr;
 
-unsigned __stdcall MinifilterListenerThread(void* lpParam)
-{
-    HANDLE hPort = INVALID_HANDLE_VALUE;
+void DetectionWorkerThread(HANDLE hDevice) {
+    KERNEL_ALERT alert = { 0 };
+    DWORD bytesReturned = 0;
 
-    HRESULT hr = FilterConnectCommunicationPort(L"\\ScoutACPort", 0, NULL, 0, NULL, &hPort);
-    if (FAILED(hr)) {
-        std::cout << "[-] Failed to connect to ScoutACPort: 0x" << std::hex << hr << std::endl;
-        return 1;
-    }
+    OVERLAPPED ov = { 0 };
+    ov.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 
-    std::cout << "[+] Connected to ScoutACPort. Awaiting kernel alerts..." << std::endl;
+    HANDLE waitHandles[2] = { ov.hEvent, g_hShutdownEvent };
 
-    MINIFILTER_MESSAGE IncomingPacket = { 0 };
+    while (g_Running.load()) {
+        ResetEvent(ov.hEvent);
+        ov.Internal = 0;
+        ov.InternalHigh = 0;
+        ov.Offset = 0;
+        ov.OffsetHigh = 0;
 
-    while (true) {
-        hr = FilterGetMessage(hPort, &IncomingPacket.Header, sizeof(IncomingPacket), NULL);
+        BOOL success = DeviceIoControl(
+            hDevice,
+            IOCTL_LISTEN_DETECTION,
+            nullptr, 0,
+            &alert, sizeof(alert),
+            nullptr,
+            &ov
+        );
 
-        if (SUCCEEDED(hr)) {
-            KERNEL_ALERT* alert = &IncomingPacket.AlertData;
-
-            std::cout << "\n[!] --- SCOUT AC TELEMETRY ---" << std::endl;
-            std::cout << "[*] Violation: " << alert->ViolationType << std::endl;
-            std::wcout << L"[*] Details:   " << alert->Description << std::endl;
-            std::cout << "------------------------------\n" << std::endl;
+        if (!success && GetLastError() != ERROR_IO_PENDING) {
+            break;
         }
-        else {
-            if (hr == HRESULT_FROM_WIN32(ERROR_INVALID_HANDLE)) {
-                std::cout << "[-] Communication port closed by kernel component." << std::endl;
+
+        DWORD waitResult = WaitForMultipleObjects(2, waitHandles, FALSE, INFINITE);
+
+        if (waitResult == WAIT_OBJECT_0) {
+            // driver completed the IRP
+
+            if (GetOverlappedResult(hDevice, &ov, &bytesReturned, FALSE)) {
+
+                std::cout << "\n[!] --- SCOUT AC TELEMETRY ---" << std::endl;
+                std::cout << "[*] Violation: " << alert.ViolationType << std::endl;
+                std::wcout << L"[*] Details:   " << alert.Description << std::endl;
+                std::cout << "------------------------------\n" << std::endl;
             }
-            else {
-                std::cout << "[-] FilterGetMessage error: 0x" << std::hex << hr << std::endl;
-            }
+        }
+        else if (waitResult == WAIT_OBJECT_0 + 1) {
+            std::cout << "[*] Receieved stop signal." << std::endl;
+            CancelIoEx(hDevice, &ov);
             break;
         }
     }
 
-    CloseHandle(hPort);
-    return 0;
+    CloseHandle(ov.hEvent);
 }
+
 
 
 int main()
@@ -62,7 +73,7 @@ int main()
         0,
         nullptr,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
         nullptr);
 
     if (hDevice == INVALID_HANDLE_VALUE) {
@@ -81,7 +92,7 @@ int main()
 
     std::cout << "Enter PID to protect: ";
 
-    auto PID = 0;
+    DWORD PID = 0;
 
     std::cin >> PID;
 
@@ -89,56 +100,49 @@ int main()
 
     DWORD bytesReturned;
 
-    NTSTATUS success = DeviceIoControl(
+    OVERLAPPED syncOv = { 0 };
+    syncOv.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+
+    BOOL success = DeviceIoControl(
         hDevice,
         IOCTL_PROTECT_PROCESS,
         &processID,
         sizeof(processID),
-        nullptr,
-        0,
+        nullptr, 0,
         &bytesReturned,
-        nullptr);
+        &syncOv);
+
+    if (!success && GetLastError() == ERROR_IO_PENDING) {
+        WaitForSingleObject(syncOv.hEvent, INFINITE);
+        success = GetOverlappedResult(hDevice, &syncOv, &bytesReturned, FALSE);
+    }
 
     if (success) {
         std::cout << "Protected process: " << std::dec << processID << " successfully." << std::endl;
-    }
-    else {
+    } else {
         std::cout << "Failed to protect process. Error code: " << GetLastError() << std::endl;
     }
+
+    g_hShutdownEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+
+    std::thread worker(DetectionWorkerThread, hDevice);
+
+    std::cout << "Client running, press any key to terminate." << std::endl;
+    std::cin.get();
+    std::cin.get();
+
     
-    HANDLE hThread = (HANDLE)_beginthreadex(
-        nullptr,
-        0,
-        MinifilterListenerThread,
-        nullptr,
-        0,
-        nullptr
-    );
-    if (hThread == NULL) {
-        std::cout << "[-] Failed to create MinifilterListenerThread!" << std::endl;
-    }
-    else {
-        std::cout << "[+] MinifilterListenerThread active in background." << std::endl;
+    g_Running = false;
+    SetEvent(g_hShutdownEvent);
+
+
+    if (worker.joinable()) {
+        worker.join();
     }
 
-    while (true) {
-
-        if (GetAsyncKeyState(VK_END) & 1)
-            break;
-
-        SleepEx(50, FALSE);
-
-    }
-
+    CloseHandle(g_hShutdownEvent);
     CloseHandle(hDevice);
-    std::cout << "Connection Closed." << std::endl;
 
-    if (hThread != NULL) {
-        CloseHandle(hThread);
-    }
-
-    system("pause");
     return 0;
-
 }
 
